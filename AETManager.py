@@ -3,11 +3,19 @@ from tkinter import font
 import subprocess
 
 # Run adb commands
-def run_adb_command(command):
+def run_adb_command(command, is_core_command=False):
     try:
+        if not is_core_command:
+            update_cmd_output(f"RUN: {command}")
+
         result = subprocess.run(command, capture_output=True, text=True, shell=True)
-        return result.stdout.strip()
+        resultText = result.stdout.strip()
+
+        if not is_core_command:
+            update_cmd_output(resultText if resultText else "RETURN NO OUTPUT")
+        return resultText
     except Exception as e:
+        update_cmd_output(f"Error running command: {command}\nError: {str(e)}")
         return str(e)
 
 wifi_state = False
@@ -34,8 +42,8 @@ def toggle_data():
 # Update status labels and button states
 def update_status():
     global wifi_state, data_state
-    wifi_status = run_adb_command("adb shell dumpsys wifi | findstr Wi-Fi")
-    data_status = run_adb_command("adb shell dumpsys connectivity | findstr MOBILE")
+    wifi_status = run_adb_command("adb shell dumpsys wifi | findstr Wi-Fi", is_core_command=True)
+    data_status = run_adb_command("adb shell dumpsys connectivity | findstr MOBILE", is_core_command=True)
 
     if "enabled" in wifi_status.lower():
         wifi_state = True
@@ -59,6 +67,14 @@ def update_status():
 def schedule_update():
     update_status()
     root.after(2000, schedule_update)
+
+# Update command output
+def update_cmd_output(outputText):
+    # Append new output to existing text
+    cmd_output_text.config(state=tk.NORMAL)
+    cmd_output_text.insert(tk.END, outputText + "\n")
+    cmd_output_text.see(tk.END)
+    cmd_output_text.config(state=tk.DISABLED)
 
 # GUI
 root = tk.Tk()
@@ -114,6 +130,16 @@ btn_data_toggle = tk.Button(data_row, text="📴", font=icon_font,
                             command=toggle_data, cursor="hand2", bd=0, 
                             width=2, height=1)
 btn_data_toggle.pack(side=tk.RIGHT)
+
+# Bottom commands output display container
+cmd_output_frame = tk.Frame(root, bg="#000000", padx=15, pady=10, height=150)
+cmd_output_frame.pack(fill=tk.BOTH, expand=False)
+
+cmd_output_text = tk.Text(cmd_output_frame, font=label_font, bg="#000000", 
+                          fg="#2FF116", height=8, width=60, wrap=tk.WORD, 
+                          state=tk.DISABLED)
+cmd_output_text.pack(fill=tk.BOTH, expand=True)
+
 
 # Footer
 status_label = tk.Label(root, text="⟳ 2s", font=("Segoe UI", 8), 
