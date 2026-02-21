@@ -54,14 +54,19 @@ if errorlevel 1 (
 
 echo Python dependencies installed successfully.
 
-@REM Copy the software files to the installation directory without installation and requirements files
+@REM Copy all software files from src and include LICENSE.txt
 echo Copying files to installation directory...
 if not exist "%INSTALL_DIR%" (
     mkdir "%INSTALL_DIR%"
 )
-robocopy . "%INSTALL_DIR%" /E /XF install-windows.bat requirements.txt >nul
+robocopy src "%INSTALL_DIR%" /E >nul
 if errorlevel 8 (
     echo Failed to copy files to installation directory.
+    exit /b 1
+)
+copy /Y "LICENSE.txt" "%INSTALL_DIR%\LICENSE.txt" >nul
+if errorlevel 1 (
+    echo Failed to copy LICENSE.txt to installation directory.
     exit /b 1
 )
 
