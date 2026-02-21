@@ -3,14 +3,23 @@ import os
 import shutil
 import tempfile
 import urllib.error
+import urllib.parse
 import urllib.request
 import zipfile
 
 RELEASE_API_URL = "https://api.github.com/repos/CHN-Software-Developers/AETManager/releases/latest"
+SOURCE_ZIP_URL_TEMPLATE = "https://github.com/CHN-Software-Developers/AETManager/archive/refs/tags/{tag}.zip"
 HTTP_HEADERS = {
     "Accept": "application/vnd.github+json",
     "User-Agent": "AETManager-Updater",
 }
+
+
+def _report_status(message, status_callback=None):
+    if status_callback:
+        status_callback(message)
+    else:
+        print(message)
 
 
 def _version_tuple(version_text):
@@ -57,7 +66,31 @@ def _load_latest_release():
         raise RuntimeError("Release query returned invalid JSON.") from error
 
 
-def _copy_release_files(zipball_url, app_dir):
+def _resolve_source_zip_url(release):
+    source_zip_url = str(release.get("zipball_url", "")).strip()
+    if source_zip_url:
+        return source_zip_url
+
+    release_tag = str(release.get("tag_name", "")).strip()
+    if not release_tag:
+        return ""
+    encoded_tag = urllib.parse.quote(release_tag, safe="")
+    return SOURCE_ZIP_URL_TEMPLATE.format(tag=encoded_tag)
+
+
+def _resolve_license_target_path(app_dir):
+    app_license_path = os.path.join(app_dir, "LICENSE.txt")
+    if os.path.isfile(app_license_path):
+        return app_license_path
+
+    parent_license_path = os.path.join(os.path.dirname(app_dir), "LICENSE.txt")
+    if os.path.isfile(parent_license_path):
+        return parent_license_path
+
+    return app_license_path
+
+
+def _copy_release_files(zipball_url, app_dir, license_target_path):
     request = urllib.request.Request(zipball_url, headers=HTTP_HEADERS)
     with tempfile.TemporaryDirectory() as temp_dir:
         archive_path = os.path.join(temp_dir, "release.zip")
@@ -97,35 +130,39 @@ def _copy_release_files(zipball_url, app_dir):
             else:
                 shutil.copy2(source_path, target_path)
 
-        shutil.copy2(release_license, os.path.join(app_dir, "LICENSE.txt"))
+        shutil.copy2(release_license, license_target_path)
 
 
-def auto_update_if_available(current_version, app_dir):
-    if not os.path.isfile(os.path.join(app_dir, "LICENSE.txt")):
-        return False
+def auto_update_if_available(current_version, app_dir, status_callback=None):
+    _report_status("Checking for updates...", status_callback)
+    license_target_path = _resolve_license_target_path(app_dir)
 
     try:
         release = _load_latest_release()
     except RuntimeError as error:
-        print(f"Update check skipped: {error}")
+        _report_status(f"Update error: {error}", status_callback)
         return False
 
     if not release:
+        _report_status("Update check completed: no releases found.", status_callback)
         return False
 
     release_tag = str(release.get("tag_name", "")).strip()
-    zipball_url = str(release.get("zipball_url", "")).strip()
+    source_zip_url = _resolve_source_zip_url(release)
 
-    if not release_tag or not zipball_url:
+    if not release_tag or not source_zip_url:
+        _report_status("Update error: invalid release metadata.", status_callback)
         return False
     if not _is_newer_version(release_tag, current_version):
+        _report_status(f"AETManager is up to date ({current_version}).", status_callback)
         return False
 
+    _report_status(f"Update available: {release_tag}. Downloading...", status_callback)
     try:
-        _copy_release_files(zipball_url, app_dir)
+        _copy_release_files(source_zip_url, app_dir, license_target_path)
     except (RuntimeError, OSError) as error:
-        print(f"Auto-update failed: {error}")
+        _report_status(f"Update error: {error}", status_callback)
         return False
 
-    print(f"Updated AETManager to {release_tag.lstrip('vV')}. Restarting...")
+    _report_status(f"Updated AETManager to {release_tag}. Restarting...", status_callback)
     return True

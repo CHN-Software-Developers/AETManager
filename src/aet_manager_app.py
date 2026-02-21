@@ -6,7 +6,7 @@ import theme
 
 
 class AETManagerApp:
-    def __init__(self):
+    def __init__(self, startup_messages=None):
         self.root = tk.Tk()
         self.root.title("AETManager")
         self.root.geometry("570x480")
@@ -20,6 +20,8 @@ class AETManagerApp:
         self.status_font = font.Font(family="Segoe UI", size=9, weight="bold")
 
         self._build_ui()
+        self.startup_messages = startup_messages or []
+        self._show_startup_messages()
         self.controller = ADBController(self.update_cmd_output)
         self._set_initial_density()
         self.schedule_update()
@@ -136,6 +138,10 @@ class AETManagerApp:
             pady=6,
         )
         status_label.pack()
+
+    def _show_startup_messages(self):
+        for message in self.startup_messages:
+            self.update_cmd_output(message)
 
     def _set_initial_density(self):
         current_density = self.controller.get_current_density()
