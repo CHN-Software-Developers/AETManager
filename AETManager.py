@@ -66,6 +66,36 @@ def change_density(value):
     update_cmd_output(f"Density changed to: {value}\nRebooting device...")
     
 
+# Reset density to system default
+def reset_density():
+    global reboot_executed
+
+    run_adb_command("adb shell wm density reset && adb reboot")
+    reboot_executed = True
+    update_cmd_output("Density reset to default.\nRebooting device...")
+
+
+# Get the currently effective density (override if available)
+def get_current_density():
+    density_output = run_adb_command("adb shell wm density", is_core_command=True)
+    if not density_output:
+        return ""
+
+    physical_density = ""
+    for line in density_output.splitlines():
+        line = line.strip()
+        if line.startswith("Override density:"):
+            override_density = line.split(":", 1)[1].strip()
+            if override_density.isdigit():
+                return override_density
+        elif line.startswith("Physical density:"):
+            value = line.split(":", 1)[1].strip()
+            if value.isdigit():
+                physical_density = value
+
+    return physical_density
+
+
 # Update status labels and button states
 def update_status():
     global wifi_state, data_state, reboot_executed
@@ -174,10 +204,17 @@ density_label = tk.Label(density_row, text="Density (DPI)", font=label_font, bg=
 density_label.pack(side=tk.LEFT)
 
 density_entry = tk.Entry(density_row, font=("Segoe UI", 12), width=10, bg="#1E1E1E", fg="#FFFFFF", insertbackground="#FFFFFF")
+current_density = get_current_density()
+if current_density:
+    density_entry.insert(0, current_density)
+btn_density_reset = tk.Button(density_row, text="Reset", font=label_font,
+                              command=reset_density,
+                                cursor="hand2", bd=0, bg="#F44336", fg="#FFFFFF", width=8, height=1)
 btn_density_change = tk.Button(density_row, text="Change", font=label_font, 
                               command=lambda: change_density(density_entry.get()),
                                 cursor="hand2", bd=0, bg="#4CAF50", fg="#FFFFFF", width=8, height=1)
 
+btn_density_reset.pack(side=tk.RIGHT)
 btn_density_change.pack(side=tk.RIGHT, padx=(0, 6))
 density_entry.pack(side=tk.RIGHT, padx=(0, 10))
 
