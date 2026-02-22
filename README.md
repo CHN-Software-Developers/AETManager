@@ -17,11 +17,10 @@ src/
 
 ## Run Locally
 
-Requirements:
+Prerequisites:
 
 - Windows, Linux, or MacOS (installer only supports Windows. Additional configuration required for other operating systems).
-- Python in PATH.
-- ADB in PATH.
+- Python and ADB in PATH (the installer for Windows will try to automatically install python if no installation found).
 
 From repository root:
 
@@ -44,25 +43,3 @@ Run:
 install-windows.bat
 ```
 
-Installer behavior:
-
-- Installs Python if missing
-- Installs dependencies from `requirements.txt`
-- Copies all files from `src\` to:
-  - `%LOCALAPPDATA%\CHN Software Developers\AETManager`
-- Copies `LICENSE.txt` to the same install directory
-- Adds the install directory to User `PATH`
-
-## Uninstall (Windows)
-
-Run:
-
-```bat
-uninstall-windows.bat
-```
-
-Uninstaller behavior:
-
-- Removes the install directory:
-  - `%LOCALAPPDATA%\CHN Software Developers\AETManager`
-- Removes that directory from User `PATH`
