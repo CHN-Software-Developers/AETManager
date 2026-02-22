@@ -19,6 +19,14 @@ src/
   aetmanager.bat       # Convenience launcher
 ```
 
+## Features
+
+- Handle network connections of the emulator
+- Configure the density (dpi) of the connected device
+- *View and filter the emulator logs (upcoming feature)*
+- *Switch between multiple emulators (upcoming feature)*
+- *Start/re-start/reset emulator device (upcoming feature)*
+
 ## Run Locally
 
 Prerequisites:
@@ -57,3 +65,4 @@ uninstall-windows
 ## Issues
 
 If you have any questions or issues, don't hesitate to contact us at [contact@chnsoftwaredevelopers.com](mailto:contact@chnsoftwaredevelopers.com) or raise an issue [here](https://github.com/CHN-Software-Developers/AETManager/issues).
+
