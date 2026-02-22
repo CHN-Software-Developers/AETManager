@@ -1,12 +1,26 @@
 import subprocess
+import threading
 
 
 class ADBController:
+    LOG_LEVEL_ARGUMENTS = {
+        "ALL": "*:V",
+        "VERBOSE": "*:V",
+        "DEBUG": "*:D",
+        "INFO": "*:I",
+        "WARNING": "*:W",
+        "ERROR": "*:E",
+    }
+
     def __init__(self, output_callback):
         self.output_callback = output_callback
         self.wifi_state = False
         self.data_state = False
         self.reboot_executed = False
+        self.logcat_process = None
+        self.logcat_thread = None
+        self.logcat_stop_event = threading.Event()
+        self.log_line_callback = None
 
     def run_adb_command(self, command, is_core_command=False):
         try:
@@ -30,6 +44,80 @@ class ADBController:
         except Exception as error:
             self.output_callback(f"Error running command: {command}\nError: {str(error)}")
             return str(error)
+
+    def _read_log_stream(self):
+        try:
+            while not self.logcat_stop_event.is_set() and self.logcat_process and self.logcat_process.stdout:
+                line = self.logcat_process.stdout.readline()
+                if not line:
+                    break
+                log_line = line.rstrip()
+                if log_line and self.log_line_callback:
+                    self.log_line_callback(log_line)
+        except Exception as error:
+            self.output_callback(f"ERROR: Failed reading log stream. {error}")
+        finally:
+            self.logcat_process = None
+            if not self.logcat_stop_event.is_set():
+                self.output_callback("ERROR: Log stream stopped unexpectedly.")
+
+    def is_log_stream_running(self):
+        return self.logcat_process is not None and self.logcat_process.poll() is None
+
+    def start_log_stream(self, log_line_callback, level="ALL"):
+        normalized_level = (level or "ALL").strip().upper()
+        priority_argument = self.LOG_LEVEL_ARGUMENTS.get(normalized_level, self.LOG_LEVEL_ARGUMENTS["ALL"])
+
+        if self.is_log_stream_running():
+            self.output_callback("RETURN: Log stream already running.")
+            return True
+
+        check_device_online = subprocess.run("adb get-state", capture_output=True, text=True, shell=True)
+        if "device" not in check_device_online.stdout:
+            self.output_callback("ERROR: No device running.")
+            return False
+
+        self.log_line_callback = log_line_callback
+        self.logcat_stop_event.clear()
+
+        try:
+            self.logcat_process = subprocess.Popen(
+                ["adb", "logcat", "-v", "time", priority_argument],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                bufsize=1,
+            )
+            self.logcat_thread = threading.Thread(target=self._read_log_stream, daemon=True)
+            self.logcat_thread.start()
+            self.output_callback(f"RETURN: Log stream started ({normalized_level}).")
+            return True
+        except Exception as error:
+            self.output_callback(f"ERROR: Failed to start log stream. {error}")
+            self.stop_log_stream(notify=False)
+            return False
+
+    def stop_log_stream(self, notify=True):
+        self.logcat_stop_event.set()
+
+        if self.logcat_process and self.logcat_process.poll() is None:
+            self.logcat_process.terminate()
+            try:
+                self.logcat_process.wait(timeout=2)
+            except subprocess.TimeoutExpired:
+                self.logcat_process.kill()
+
+        if self.logcat_thread and self.logcat_thread.is_alive():
+            self.logcat_thread.join(timeout=1)
+
+        self.logcat_process = None
+        self.logcat_thread = None
+        self.log_line_callback = None
+
+        if notify:
+            self.output_callback("RETURN: Log stream stopped.")
 
     def toggle_wifi(self):
         if self.wifi_state:
