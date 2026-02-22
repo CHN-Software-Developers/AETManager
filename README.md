@@ -2,6 +2,10 @@
 
 Simplify all your android emulator related tasks that require command executions in one place.
 
+## Download
+
+You can download the latest release of the tool [here](https://github.com/CHN-Software-Developers/AETManager/releases/latest).
+
 ## Project Structure
 
 ```text
@@ -43,4 +47,13 @@ To install the tool on your computer, you can use the `install-windows.bat` scri
 install-windows
 ```
 
+## Tool updates or uninstallation (Windows)
 
+The tool is capable of auto-updating itself as soon as a new update is available. If you need to uninstall the tool in any case, you can use the `uninstall-windows.bat` script.
+```bat
+uninstall-windows
+```
+
+## Issues
+
+If you have any questions or issues, don't hesitate to contact us at [contact@chnsoftwaredevelopers.com](mailto:contact@chnsoftwaredevelopers.com) or raise an issue [here](https://github.com/CHN-Software-Developers/AETManager/issues).
