@@ -27,6 +27,7 @@ src/
 - *View and filter the emulator logs (upcoming feature)*
 - *Switch between multiple emulators (upcoming feature)*
 - *Start/re-start/reset emulator device (upcoming feature)*
+- *File transferring/sharing (upcoming feature)*
 
 ## Run Locally
 
@@ -66,5 +67,6 @@ uninstall-windows
 ## Issues
 
 If you have any questions or issues, don't hesitate to contact us at [contact@chnsoftwaredevelopers.com](mailto:contact@chnsoftwaredevelopers.com) or raise an issue [here](https://github.com/CHN-Software-Developers/AETManager/issues).
+
 
 
