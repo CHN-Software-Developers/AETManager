@@ -1,4 +1,5 @@
 # AETManager
+
 #### (A)ndroid (E)mulator (T)asks Manager
 
 Simplify all your android emulator related tasks that require command executions in one place.
@@ -24,10 +25,10 @@ src/
 
 - Handle network connections of the emulator
 - Configure the density (dpi) of the connected device
-- *View and filter the emulator logs (upcoming feature)*
-- *Switch between multiple emulators (upcoming feature)*
-- *Start/re-start/reset emulator device (upcoming feature)*
-- *File transferring/sharing (upcoming feature)*
+- File transferring/sharing
+- _View and filter the emulator logs (upcoming feature)_
+- _Switch between multiple emulators (upcoming feature)_
+- _Start/re-start/reset emulator device (upcoming feature)_
 
 ## Run Locally
 
@@ -60,6 +61,7 @@ install-windows
 ## Tool updates or uninstallation (Windows)
 
 The tool is capable of auto-updating itself as soon as a new update is available. If you need to uninstall the tool in any case, you can use the `uninstall-windows.bat` script.
+
 ```bat
 uninstall-windows
 ```
@@ -67,6 +69,3 @@ uninstall-windows
 ## Issues
 
 If you have any questions or issues, don't hesitate to contact us at [contact@chnsoftwaredevelopers.com](mailto:contact@chnsoftwaredevelopers.com) or raise an issue [here](https://github.com/CHN-Software-Developers/AETManager/issues).
-
-
-
