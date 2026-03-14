@@ -26,7 +26,7 @@ src/
 - Handle network connections of the emulator
 - Configure the density (dpi) of the connected device
 - File transferring/sharing
-- _View and filter the emulator logs (upcoming feature)_
+- View and filter the emulator logs
 - _Switch between multiple emulators (upcoming feature)_
 - _Start/re-start/reset emulator device (upcoming feature)_
 
