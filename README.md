@@ -1,4 +1,5 @@
 # AETManager
+#### (A)ndroid (E)mulator (T)asks Manager
 
 Simplify all your android emulator related tasks that require command executions in one place.
 
@@ -26,12 +27,13 @@ src/
 - *View and filter the emulator logs (upcoming feature)*
 - *Switch between multiple emulators (upcoming feature)*
 - *Start/re-start/reset emulator device (upcoming feature)*
+- *File transferring/sharing (upcoming feature)*
 
 ## Run Locally
 
 Prerequisites:
 
-- Windows, Linux, or MacOS (installer only supports Windows. Additional configuration required for other operating systems).
+- Windows, Linux, or MacOS (installer only supports Windows. Additional configuration may required for other operating systems).
 - Python and ADB in PATH (the installer for Windows will try to automatically install Python if no installation is found).
 
 From repository root:
@@ -65,4 +67,6 @@ uninstall-windows
 ## Issues
 
 If you have any questions or issues, don't hesitate to contact us at [contact@chnsoftwaredevelopers.com](mailto:contact@chnsoftwaredevelopers.com) or raise an issue [here](https://github.com/CHN-Software-Developers/AETManager/issues).
+
+
 
