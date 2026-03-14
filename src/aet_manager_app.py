@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import font
+from tkinter import filedialog, font, ttk
 import queue
 
 from adb_controller import ADBController
@@ -10,7 +10,7 @@ class AETManagerApp:
     def __init__(self, startup_messages=None):
         self.root = tk.Tk()
         self.root.title("AETManager")
-        self.root.geometry("570x480")
+        self.root.geometry("570x580")
         self.root.configure(bg=theme.WINDOW_BG)
         self.root.resizable(False, False)
 
@@ -34,6 +34,10 @@ class AETManagerApp:
         self.logs_queue = queue.Queue()
         self.logs_update_job = None
         self.log_level_options = ("All", "Errors", "Warnings", "Info", "Debug", "Verbose")
+        self.transfer_window = None
+        self.transfer_tree = None
+        self.transfer_local_file_var = None
+        self.transfer_destination_var = None
         self._set_initial_density()
         self.schedule_update()
         self.root.protocol("WM_DELETE_WINDOW", self._on_app_close)
@@ -145,6 +149,27 @@ class AETManagerApp:
         )
         self.btn_logs_open.pack(side=tk.RIGHT)
 
+        # ----- Transfer Files Row -----
+        transfer_row = tk.Frame(controls_frame, bg=theme.ROW_BG, bd=1, relief=tk.SOLID, pady=8, padx=10)
+        transfer_row.pack(fill=tk.X, pady=5)
+
+        transfer_label = tk.Label(transfer_row, text="Transfer Files", font=self.label_font, bg=theme.ROW_BG, fg=theme.TEXT_COLOR, width=15, anchor="w")
+        transfer_label.pack(side=tk.LEFT)
+
+        self.btn_transfer_open = tk.Button(
+            transfer_row,
+            text="Open",
+            font=self.label_font,
+            command=self.open_transfer_window,
+            cursor="hand2",
+            bd=0,
+            bg=theme.SUCCESS_COLOR,
+            fg=theme.TEXT_COLOR,
+            width=8,
+            height=1,
+        )
+        self.btn_transfer_open.pack(side=tk.RIGHT)
+
         # Bottom commands output display container
         cmd_output_frame = tk.Frame(self.root, bg=theme.OUTPUT_BG, padx=15, pady=10, height=150)
         cmd_output_frame.pack(fill=tk.BOTH, expand=False)
@@ -231,6 +256,235 @@ class AETManagerApp:
     # Reset density to system default
     def reset_density(self):
         self.controller.reset_density()
+
+    def open_transfer_window(self):
+        if self.transfer_window and self.transfer_window.winfo_exists():
+            self.transfer_window.lift()
+            self.transfer_window.focus_force()
+            return
+
+        self.transfer_window = tk.Toplevel(self.root)
+        self.transfer_window.title("Transfer Files")
+        self.transfer_window.geometry("920x560")
+        self.transfer_window.configure(bg=theme.WINDOW_BG)
+        self.transfer_window.protocol("WM_DELETE_WINDOW", self.close_transfer_window)
+
+        self.transfer_local_file_var = tk.StringVar(self.transfer_window, value="")
+        self.transfer_destination_var = tk.StringVar(self.transfer_window, value="/")
+
+        source_frame = tk.Frame(self.transfer_window, bg=theme.WINDOW_BG, padx=10, pady=8)
+        source_frame.pack(fill=tk.X)
+
+        source_label = tk.Label(source_frame, text="Local File", font=self.label_font, bg=theme.WINDOW_BG, fg=theme.TEXT_COLOR)
+        source_label.pack(side=tk.LEFT)
+
+        source_entry = tk.Entry(
+            source_frame,
+            textvariable=self.transfer_local_file_var,
+            font=self.label_font,
+            state="readonly",
+            readonlybackground=theme.ROW_BG,
+            fg=theme.TEXT_COLOR,
+            width=78,
+        )
+        source_entry.pack(side=tk.LEFT, padx=(8, 8))
+
+        browse_button = tk.Button(
+            source_frame,
+            text="Browse",
+            font=self.label_font,
+            command=self.select_transfer_local_file,
+            cursor="hand2",
+            bd=0,
+            bg=theme.INACTIVE_BUTTON_COLOR,
+            fg=theme.TEXT_COLOR,
+            width=10,
+        )
+        browse_button.pack(side=tk.LEFT)
+
+        destination_frame = tk.Frame(self.transfer_window, bg=theme.WINDOW_BG, padx=10, pady=4)
+        destination_frame.pack(fill=tk.X)
+
+        destination_label = tk.Label(destination_frame, text="Destination", font=self.label_font, bg=theme.WINDOW_BG, fg=theme.TEXT_COLOR)
+        destination_label.pack(side=tk.LEFT)
+
+        destination_value = tk.Label(
+            destination_frame,
+            textvariable=self.transfer_destination_var,
+            font=self.label_font,
+            bg=theme.WINDOW_BG,
+            fg=theme.SUCCESS_COLOR,
+            anchor="w",
+        )
+        destination_value.pack(side=tk.LEFT, padx=(8, 0))
+
+        browser_frame = tk.Frame(self.transfer_window, bg=theme.OUTPUT_BG, padx=10, pady=8)
+        browser_frame.pack(fill=tk.BOTH, expand=True)
+
+        self.transfer_tree = ttk.Treeview(browser_frame, columns=("path",), show="tree", selectmode="browse")
+        self.transfer_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+        browser_scrollbar = tk.Scrollbar(browser_frame, orient=tk.VERTICAL, command=self.transfer_tree.yview)
+        browser_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        self.transfer_tree.configure(yscrollcommand=browser_scrollbar.set)
+
+        self.transfer_tree.bind("<<TreeviewOpen>>", self._on_transfer_tree_open)
+        self.transfer_tree.bind("<<TreeviewSelect>>", self._on_transfer_tree_select)
+
+        action_frame = tk.Frame(self.transfer_window, bg=theme.WINDOW_BG, padx=10, pady=8)
+        action_frame.pack(fill=tk.X)
+
+        refresh_button = tk.Button(
+            action_frame,
+            text="Refresh",
+            font=self.label_font,
+            command=self.refresh_transfer_locations,
+            cursor="hand2",
+            bd=0,
+            bg=theme.INACTIVE_BUTTON_COLOR,
+            fg=theme.TEXT_COLOR,
+            width=10,
+        )
+        refresh_button.pack(side=tk.LEFT)
+
+        transfer_button = tk.Button(
+            action_frame,
+            text="Transfer",
+            font=self.label_font,
+            command=self.transfer_file_to_emulator,
+            cursor="hand2",
+            bd=0,
+            bg=theme.SUCCESS_COLOR,
+            fg=theme.TEXT_COLOR,
+            width=10,
+        )
+        transfer_button.pack(side=tk.LEFT, padx=(8, 8))
+
+        close_button = tk.Button(
+            action_frame,
+            text="Close",
+            font=self.label_font,
+            command=self.close_transfer_window,
+            cursor="hand2",
+            bd=0,
+            bg=theme.ERROR_COLOR,
+            fg=theme.TEXT_COLOR,
+            width=10,
+        )
+        close_button.pack(side=tk.LEFT)
+
+        self.refresh_transfer_locations()
+
+    def _join_remote_path(self, base_path, child_name):
+        if base_path == "/":
+            return f"/{child_name}"
+        return f"{base_path.rstrip('/')}/{child_name}"
+
+    def _tree_item_remote_path(self, item_id):
+        if not self.transfer_tree:
+            return "/"
+        values = self.transfer_tree.item(item_id, "values")
+        return values[0] if values else "/"
+
+    def _insert_transfer_placeholder(self, parent_id):
+        if not self.transfer_tree:
+            return
+        self.transfer_tree.insert(parent_id, tk.END, text="...", values=("__placeholder__",))
+
+    def _load_transfer_tree_children(self, node_id, remote_path):
+        if not self.transfer_tree:
+            return
+
+        children = self.transfer_tree.get_children(node_id)
+        for child_id in children:
+            self.transfer_tree.delete(child_id)
+
+        directories, error_message = self.controller.list_remote_directories(remote_path)
+        if error_message:
+            return
+
+        for directory_name in directories:
+            directory_path = self._join_remote_path(remote_path, directory_name)
+            child_node = self.transfer_tree.insert(node_id, tk.END, text=directory_name, values=(directory_path,))
+            self._insert_transfer_placeholder(child_node)
+
+    def refresh_transfer_locations(self):
+        if not self.transfer_tree:
+            return
+
+        root_nodes = self.transfer_tree.get_children("")
+        for node_id in root_nodes:
+            self.transfer_tree.delete(node_id)
+
+        root_node = self.transfer_tree.insert("", tk.END, text="/", values=("/",))
+        self._insert_transfer_placeholder(root_node)
+        self.transfer_tree.item(root_node, open=True)
+        self._load_transfer_tree_children(root_node, "/")
+        self.transfer_tree.focus(root_node)
+        self.transfer_tree.selection_set(root_node)
+        if self.transfer_destination_var:
+            self.transfer_destination_var.set("/")
+
+    def _on_transfer_tree_open(self, _event):
+        if not self.transfer_tree:
+            return
+
+        node_id = self.transfer_tree.focus()
+        if not node_id:
+            return
+
+        child_nodes = self.transfer_tree.get_children(node_id)
+        if len(child_nodes) != 1:
+            return
+
+        placeholder_id = child_nodes[0]
+        placeholder_values = self.transfer_tree.item(placeholder_id, "values")
+        if not placeholder_values or placeholder_values[0] != "__placeholder__":
+            return
+
+        remote_path = self._tree_item_remote_path(node_id)
+        self._load_transfer_tree_children(node_id, remote_path)
+
+    def _on_transfer_tree_select(self, _event):
+        if not self.transfer_tree or not self.transfer_destination_var:
+            return
+
+        selected_nodes = self.transfer_tree.selection()
+        if not selected_nodes:
+            return
+
+        selected_path = self._tree_item_remote_path(selected_nodes[0])
+        self.transfer_destination_var.set(selected_path)
+
+    def select_transfer_local_file(self):
+        selected_file_path = filedialog.askopenfilename(title="Select file to transfer")
+        if not selected_file_path:
+            return
+        if self.transfer_local_file_var:
+            self.transfer_local_file_var.set(selected_file_path)
+
+    def transfer_file_to_emulator(self):
+        local_file_path = self.transfer_local_file_var.get().strip() if self.transfer_local_file_var else ""
+        destination_path = self.transfer_destination_var.get().strip() if self.transfer_destination_var else "/"
+
+        if not local_file_path:
+            self.update_cmd_output("INVALID_INPUT: Select a local file first.")
+            return
+
+        if not destination_path:
+            self.update_cmd_output("INVALID_INPUT: Select a destination directory first.")
+            return
+
+        self.controller.push_file_to_emulator(local_file_path, destination_path)
+
+    def close_transfer_window(self):
+        if self.transfer_window and self.transfer_window.winfo_exists():
+            self.transfer_window.destroy()
+
+        self.transfer_window = None
+        self.transfer_tree = None
+        self.transfer_local_file_var = None
+        self.transfer_destination_var = None
 
     def open_logs_window(self):
         if self.logs_window and self.logs_window.winfo_exists():
@@ -433,6 +687,7 @@ class AETManagerApp:
             self.root.after_cancel(self.logs_update_job)
             self.logs_update_job = None
         self.controller.stop_log_stream(notify=False)
+        self.close_transfer_window()
         self.root.destroy()
 
     def run(self):

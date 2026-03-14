@@ -22,6 +22,17 @@ class ADBController:
         self.logcat_stop_event = threading.Event()
         self.log_line_callback = None
 
+    def _is_device_online(self):
+        check_device_online = subprocess.run("adb get-state", capture_output=True, text=True, shell=True)
+        return "device" in check_device_online.stdout
+
+    def _normalize_remote_path(self, remote_path):
+        normalized_path = (remote_path or "/").strip()
+        if not normalized_path.startswith("/"):
+            normalized_path = f"/{normalized_path}"
+        normalized_path = normalized_path.rstrip("/")
+        return normalized_path if normalized_path else "/"
+
     def run_adb_command(self, command, is_core_command=False):
         try:
             # Skip device check and output update for core commands (used for status checks)
@@ -118,6 +129,80 @@ class ADBController:
 
         if notify:
             self.output_callback("RETURN: Log stream stopped.")
+
+    def list_remote_directories(self, remote_path):
+        normalized_path = self._normalize_remote_path(remote_path)
+        self.output_callback(f'RUN: adb shell ls -pa "{normalized_path}"')
+
+        if not self._is_device_online():
+            error_message = "ERROR: No device running."
+            self.output_callback(error_message)
+            return [], error_message
+
+        try:
+            result = subprocess.run(
+                ["adb", "shell", f'ls -pa "{normalized_path}"'],
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+            )
+        except OSError as error:
+            error_message = f"ERROR: Failed to list emulator directories. {error}"
+            self.output_callback(error_message)
+            return [], error_message
+
+        if result.returncode != 0:
+            command_output = result.stderr.strip() if result.stderr else result.stdout.strip()
+            error_message = f"ERROR: Unable to access {normalized_path}. {command_output or 'Unknown error.'}"
+            self.output_callback(error_message)
+            return [], error_message
+
+        directories = []
+        for line in result.stdout.splitlines():
+            entry = line.strip()
+            if not entry or entry in (".", ".."):
+                continue
+            if entry.endswith("/"):
+                directory_name = entry[:-1]
+                if directory_name and directory_name not in (".", ".."):
+                    directories.append(directory_name)
+
+        return sorted(set(directories), key=str.lower), None
+
+    def push_file_to_emulator(self, local_file_path, remote_directory):
+        if not local_file_path:
+            self.output_callback("INVALID_INPUT: Select a local file first.")
+            return False
+
+        normalized_destination = self._normalize_remote_path(remote_directory)
+        remote_target = f"{normalized_destination}/" if normalized_destination != "/" else "/"
+        self.output_callback(f'RUN: adb push "{local_file_path}" "{remote_target}"')
+
+        if not self._is_device_online():
+            self.output_callback("ERROR: No device running.")
+            return False
+
+        try:
+            result = subprocess.run(
+                ["adb", "push", local_file_path, remote_target],
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+            )
+        except OSError as error:
+            self.output_callback(f"ERROR: File transfer failed. {error}")
+            return False
+
+        if result.returncode != 0:
+            command_output = result.stderr.strip() if result.stderr else result.stdout.strip()
+            self.output_callback(f"ERROR: File transfer failed. {command_output or 'Unknown error.'}")
+            return False
+
+        self.output_callback(result.stdout.strip() if result.stdout else "RETURN NULL")
+        self.output_callback(f"RETURN: File transferred to {normalized_destination}")
+        return True
 
     def toggle_wifi(self):
         if self.wifi_state:
